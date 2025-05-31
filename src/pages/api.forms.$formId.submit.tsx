@@ -1,4 +1,5 @@
 import { json, type ActionFunctionArgs } from "@remix-run/node";
+import api from "../utils/axios";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   try {
@@ -9,31 +10,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const formData = await request.json();
     
-    const response = await fetch(`http://localhost:5000/api/forms/${formId}/submit`, {
-      method: 'POST',
+    const response = await api.post(`/forms/${formId}/submit`, formData, {
       headers: {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
-      },
-      body: JSON.stringify(formData),
+      }
     });
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-      return json(data, { status: response.status });
-    }
-
-    return json(data, { status: response.status });
-  } catch (error) {
+    return json(response.data, { status: response.status });
+  } catch (error: any) {
     console.error('Form submission error:', error);
     return json(
       { 
         success: false, 
-        message: 'An error occurred while submitting the form',
-        error: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
+        message: error.response?.data?.message || 'An error occurred while submitting the form',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
-      { status: 500 }
+      { status: error.response?.status || 500 }
     );
   }
 } 

@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import Navbar from '@/components/Navbar';
 import type { RootState } from '@/store';
+import api from '../utils/axios';
 
 // Use the proxy URL instead of direct API URL
 const API_BASE_URL = '/api';
@@ -78,28 +79,20 @@ export default function Dashboard() {
         setError(null);
 
         // Fetch forms created by the user
-        const formsResponse = await fetchWithRetry(`${API_BASE_URL}/forms/user/${user.id}`, {
-          method: 'GET',
-        });
-
-        const formsData = await formsResponse.json();
+        const formsResponse = await api.get(`/forms/user/${user.id}`);
         
-        if (!formsData.success) {
-          throw new Error(formsData.message || 'Failed to fetch forms');
+        if (!formsResponse.data.success) {
+          throw new Error(formsResponse.data.message || 'Failed to fetch forms');
         }
 
         // For each form, fetch its submissions
         const formsWithSubmissions = await Promise.all(
-          formsData.forms.map(async (form: Form) => {
+          formsResponse.data.forms.map(async (form: Form) => {
             try {
-              const submissionsResponse = await fetchWithRetry(`${API_BASE_URL}/forms/${form.formId}/submissions`, {
-                method: 'GET',
-              });
-
-              const submissionsData = await submissionsResponse.json();
+              const submissionsResponse = await api.get(`/forms/${form.formId}/submissions`);
               
-              if (!submissionsData.success) {
-                console.warn(`Failed to fetch submissions for form ${form.formId}:`, submissionsData.message);
+              if (!submissionsResponse.data.success) {
+                console.warn(`Failed to fetch submissions for form ${form.formId}:`, submissionsResponse.data.message);
                 return {
                   ...form,
                   submissions: []
@@ -108,9 +101,9 @@ export default function Dashboard() {
 
               return {
                 ...form,
-                submissions: submissionsData.submissions || []
+                submissions: submissionsResponse.data.submissions || []
               };
-            } catch (submissionError) {
+            } catch (submissionError: any) {
               console.warn(`Error fetching submissions for form ${form.formId}:`, submissionError);
               return {
                 ...form,
@@ -121,20 +114,21 @@ export default function Dashboard() {
         );
         
         setForms(formsWithSubmissions);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching forms:', err);
         let errorMessage = 'Failed to load forms. Please try again.';
         
-        if (err instanceof Error) {
-          if (err.message.includes('Failed to fetch')) {
-            errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
-          } else if (err.message.includes('401')) {
+        if (err.response) {
+          if (err.response.status === 401) {
             errorMessage = 'Your session has expired. Please log in again.';
-            // Optionally redirect to login
             navigate('/auth/login');
           } else {
-            errorMessage = err.message;
+            errorMessage = err.response.data?.message || err.message;
           }
+        } else if (err.request) {
+          errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+        } else {
+          errorMessage = err.message;
         }
         
         setError(errorMessage);

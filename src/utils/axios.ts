@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getToken } from './storage';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://form-web-liart.vercel.app/api',
   headers: {
     'Content-Type': 'application/json',
   },

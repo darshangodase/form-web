@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import FormField from "./FormField";
 import FormValidation from "./FormValidation";
-import { CalendarIcon } from "@heroicons/react/24/outline";
 
 interface FormField {
   id: string;

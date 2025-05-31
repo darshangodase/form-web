@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import api from '../utils/axios';
 
 interface FormField {
   id: string;
@@ -32,30 +33,22 @@ export default function FormResponses() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch form details (needed for field labels)
-        const formResponse = await fetch(`/api/forms/${formId}`);
-        if (!formResponse.ok) {
-          throw new Error('Failed to fetch form details');
-        }
-        const formData = await formResponse.json();
+        // Fetch form details and submissions in parallel
+        const [formResponse, submissionsResponse] = await Promise.all([
+          api.get(`/forms/${formId}`),
+          api.get(`/forms/${formId}/submissions`)
+        ]);
         
-        // Fetch form submissions
-        const submissionsResponse = await fetch(`/api/forms/${formId}/submissions`);
-        if (!submissionsResponse.ok) {
-          throw new Error('Failed to fetch submissions');
-        }
-        const submissionsData = await submissionsResponse.json();
-        
-        if (!formData.success || !submissionsData.success) {
+        if (!formResponse.data.success || !submissionsResponse.data.success) {
           throw new Error('API returned error');
         }
         
-        setForm(formData.form);
-        setSubmissions(submissionsData.submissions);
+        setForm(formResponse.data.form);
+        setSubmissions(submissionsResponse.data.submissions);
         setLoading(false);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        setError(err.response?.data?.message || err.message || 'Failed to fetch data');
         setLoading(false);
       }
     };

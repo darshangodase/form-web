@@ -54,6 +54,8 @@ export const login = createAsyncThunk(
       setToken(response.data.token);
       return response.data;
     } catch (error: any) {
+      console.log(error);
+      
       return rejectWithValue(error.response?.data?.message || 'Login failed');
     }
   }

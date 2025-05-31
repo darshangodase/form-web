@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import PreviewControls from "./PreviewControls";
 import SaveIndicator from "./SaveIndicator";
 import { useAppSelector } from "../../hooks/useAppSelector";
+import api from "../../utils/axios";
 
 interface FormField {
   id: string;
@@ -63,8 +64,6 @@ interface FormBuilderProps {
   initialTemplate?: FormTemplate | null;
   templateId?: string | null;
 }
-
-
 
 interface HistoryState {
   fields: FormField[];
@@ -427,7 +426,7 @@ export default function FormBuilder({ initialTemplate, templateId }: FormBuilder
     const duplicatedField = {
       ...fieldToDuplicate,
       id: uuidv4(),
-      label: `${fieldToDuplicate.label} (Copy)`,
+      label: `${fieldToDuplicate.label}`,
     };
 
     const index = fields.findIndex((field) => field.id === id);
@@ -484,45 +483,35 @@ export default function FormBuilder({ initialTemplate, templateId }: FormBuilder
       // Save form data to localStorage using the unique formId
       localStorage.setItem(`form-data-${formId}`, JSON.stringify(formData));
       
-      // Save form to database
-      const response = await fetch('/api/forms', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Save form to database using axios instance
+      const response = await api.post('/forms', {
+        title: formName,
+        description: formDescription,
+        fields: fields.map(field => ({
+          id: field.id,
+          type: field.type,
+          label: field.label,
+          required: field.required,
+          placeholder: field.placeholder,
+          options: field.options,
+          checkboxOptions: field.checkboxOptions
+        })),
+        settings: {
+          submitButtonText: settings.submitButtonText,
+          successMessage: settings.successMessage
         },
-        body: JSON.stringify({
-          title: formName,
-          description: formDescription,
-          fields: fields.map(field => ({
-            id: field.id,
-            type: field.type,
-            label: field.label,
-            required: field.required,
-            placeholder: field.placeholder,
-            options: field.options,
-            checkboxOptions: field.checkboxOptions
-          })),
-          settings: {
-            submitButtonText: settings.submitButtonText,
-            successMessage: settings.successMessage
-          },
-          isPublic: true,
-          formId,
-          userId: user?.id || 'anonymous' // Use user ID from Redux state
-        })
+        isPublic: true,
+        formId,
+        userId: user?.id || 'anonymous'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.log(errorData);
-        throw new Error(errorData.message || 'Failed to save form to database');
+      if (response.data.success) {
+        setIsShareModalOpen(true);
+      } else {
+        throw new Error(response.data.message || 'Failed to save form');
       }
-      
-      
-      setIsShareModalOpen(true);
     } catch (error) {
       console.error('Error saving form data:', error);
-      // Show error to user
       alert('Failed to save form. Please try again.');
     }
   };
